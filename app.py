@@ -1,5 +1,11 @@
-import streamlit as st
+import os
 import pandas as pd
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(BASE_DIR, "IMDB Dataset.csv")
+
+df = pd.read_csv(file_path)
+import streamlit as st
 import numpy as np
 import re
 import matplotlib.pyplot as plt
@@ -184,9 +190,9 @@ def preprocess(text: str) -> str:
 @st.cache_resource(show_spinner=False)
 def load_and_train():
     try:
-        df = pd.read_csv("IMDB Dataset.csv")
+        df = pd.read_csv("IMDB_Dataset.csv")
     except FileNotFoundError:
-        return None, "❌ **Dataset not found.** Place `IMDB Dataset.csv` in the same directory as `app.py`."
+        return None, "❌ **Dataset not found.** Place `IMDB_Dataset.csv` in the same directory as `app.py`."
     except Exception as e:
         return None, f"❌ **Error loading dataset:** {e}"
 
@@ -459,36 +465,50 @@ with right:
         st.pyplot(fig_cm)
         plt.close(fig_cm)
 
-    # ── 3. Pie chart (y_pred only) ──
-    st.markdown("**Prediction Distribution (Test Set)**")
+    # ── 3. Pie chart (DYNAMIC based on user input) ──
+    st.markdown("**Prediction Confidence (Current Review)**")
 
-    unique, counts = np.unique(y_pred, return_counts=True)
-    label_map = {0: "Negative", 1: "Positive"}
-    pie_labels = [label_map[u] for u in unique]
-    pie_colors = ["#c62828" if u == 0 else "#2e7d32" for u in unique]
+    if st.session_state["prediction"] is not None:
+        clean = preprocess(st.session_state["review_text"])
+        vec = result["vectorizer"].transform([clean])
 
-    fig_pie, ax_pie = plt.subplots(figsize=(5, 3.5))
-    fig_pie.patch.set_facecolor("#1a1d27")
-    ax_pie.set_facecolor("#1a1d27")
+        # GET PROBABILITIES ✅
+        probs = result["model"].predict_proba(vec)[0]
 
-    wedges, texts, autotexts = ax_pie.pie(
-        counts,
-        labels=pie_labels,
-        autopct="%1.1f%%",
-        colors=pie_colors,
-        startangle=140,
-        wedgeprops={"edgecolor": "#0e1117", "linewidth": 2},
-        textprops={"color": "#e0e0e0", "fontsize": 12},
-    )
-    for at in autotexts:
-        at.set_fontsize(11)
-        at.set_fontweight("bold")
-        at.set_color("#ffffff")
+        negative = probs[0]
+        positive = probs[1]
 
-    ax_pie.set_title(
-        f"Total predictions: {len(y_pred):,}",
-        color="#7c83a0", fontsize=11, pad=10
-    )
-    plt.tight_layout()
-    st.pyplot(fig_pie)
-    plt.close(fig_pie)
+        labels = ["Negative", "Positive"]
+        sizes = [negative, positive]
+        colors = ["#c62828", "#2e7d32"]
+
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 3.5))
+        fig_pie.patch.set_facecolor("#1a1d27")
+        ax_pie.set_facecolor("#1a1d27")
+
+        wedges, texts, autotexts = ax_pie.pie(
+            sizes,
+            labels=labels,
+            autopct="%1.1f%%",
+            colors=colors,
+            startangle=140,
+            wedgeprops={"edgecolor": "#0e1117", "linewidth": 2},
+            textprops={"color": "#e0e0e0", "fontsize": 12},
+        )
+
+        for at in autotexts:
+            at.set_fontsize(11)
+            at.set_fontweight("bold")
+            at.set_color("#ffffff")
+
+        ax_pie.set_title(
+            "Prediction Confidence",
+            color="#7c83a0", fontsize=11, pad=10
+        )
+
+        plt.tight_layout()
+        st.pyplot(fig_pie)
+        plt.close(fig_pie)
+
+    else:
+        st.info("Enter a review and click Predict to see dynamic results.")

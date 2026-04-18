@@ -66,4 +66,4 @@ The model is trained on the IMDB movie review dataset, containing labeled review
 
 ## Author
 
-Kishan Kumar Kasaudhan
+Kishan Kumar Kasaudhan and Manav Sachdeva
